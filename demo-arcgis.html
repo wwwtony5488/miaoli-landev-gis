@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Historic Topographic Maps</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+
+    <!-- Load Leaflet from CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+      crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+      integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+      crossorigin=""></script>
+
+    <!-- Load Esri Leaflet from CDN -->
+    <script src="https://unpkg.com/esri-leaflet@3.0.1/dist/esri-leaflet.js"></script>
+
+
+    <!-- Proj4 and Proj4Leaflet -->
+    <script src="https://unpkg.com/proj4@2.4.3"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.1"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+    <!-- Bs4 -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <style>
+      body { margin:0; padding:0; }
+      #map { position: absolute; top:0; bottom:0; right:0; left:0; z-index: 0; max-width: 2048px; max-height: 2048px; }
+      #inputGroupSelect01 { z-index: 1; width: 10rem; height: 3rem; right: 1rem; top: 1rem; }
+      #checkboxGroup { z-index: 1; right: 1rem; top: 6rem; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <select class="custom-select position-absolute" id="inputGroupSelect01">
+      <option value="1" selected>航照影像</option>
+      <option value="2">電子地圖</option>
+    </select>
+    <div class="position-absolute form-check form-check-inline bg-white p-2 rounded mr-0 d-flex flex-column align-items-start" id="checkboxGroup">
+      <div class="text-left">
+        <input class="form-check-input" type="checkbox" value="street" id="defaultCheck1">
+        <label class="form-check-label mr-2" for="defaultCheck1">
+          道路
+        </label>
+      </div>
+    </div>
+    <script>
+      const crs = new L.Proj.CRS('EPSG:3826', '+proj=tmerc +lat_0=0 +lon_0=121 +k=0.9999 +x_0=250000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs ', {
+        origin: [-5372600.0, 1.00011E7],
+        resolutions: [
+          66.1459656252646,
+          26.458386250105836,
+          13.229193125052918,
+          6.614596562526459,
+          2.6458386250105836,
+          1.3229193125052918,
+          0.6614596562526459,
+          0.26458386250105836,
+          0.13229193125052918
+        ]
+      });
+
+      const map = L.map('map', { crs }).setView([24.56, 120.9], 1);
+      const commonConfig = { maxZoom: 8, minZoom: 0 };
+      const imageLayer = L.esri.tiledMapLayer({
+        url: 'http://landev.miaoli.gov.tw/arcgis/rest/services/Miaoli/Image/MapServer', ...commonConfig
+      }).addTo(map)
+      const routeLayer = L.esri.tiledMapLayer({
+        url: 'http://landev.miaoli.gov.tw/arcgis/rest/services/Miaoli/M_Road_cache2/MapServer', ...commonConfig 
+      }).addTo(map);
+      const baseLayer = L.esri.tiledMapLayer({
+        url: 'http://landev.miaoli.gov.tw/arcgis/rest/services/Miaoli/BaseMap/MapServer', ...commonConfig
+      })
+
+      const changedMap = () => {
+        map.eachLayer(l => map.removeLayer(l));
+          switch($("#inputGroupSelect01")[0].value) {
+            case "1":
+              if (map.hasLayer(baseLayer)) {
+                map.removeLayer(baseLayer);
+              }
+              map.addLayer(imageLayer);
+              break;
+            case "2":
+              if (map.hasLayer(imageLayer)) {
+                map.removeLayer(imageLayer);
+              }
+              map.addLayer(baseLayer);
+              break;
+          }
+
+          const dataLayers = [];
+
+          $('#checkboxGroup :checked').each(function() {
+            console.log(this.value);
+            if (this.value === 'street') {
+              map.addLayer(routeLayer);
+            } else {
+              dataLayers.push(Number(this.value));
+              L.esri.dynamicMapLayer({
+                url: 'http://landev.miaoli.gov.tw/arcgis/rest/services/Miaoli/00190/MapServer',
+                format: "PNG8",
+                layers: dataLayers,
+                ...commonConfig
+              }).addTo(map);
+            }
+          });
+      }
+      
+      $(function() {
+        $("#inputGroupSelect01").change(function() {
+          changedMap();
+        });
+
+        $("#checkboxGroup").change(function() {
+          changedMap();
+        });
+
+        const layerDataKeys =  [
+          '查報點',
+          '已登記工廠',
+          '未登記工廠',
+          '甲乙種工業區申請案',
+          '工廠建物',
+          '工業用地',
+          '開發許可案使用規劃',
+          '非都開發許可案範圍',
+          '非都工業區',
+          '都市計畫工業區',
+          '都市計畫圖',
+          '都市計畫區'
+        ];
+        layerDataKeys.map((item, index) => {
+          $('#checkboxGroup').append(
+            `
+              <div>
+                <input class="form-check-input" type="checkbox" value="${index}" id="defaultCheck${index + 2}">
+                <label class="form-check-label mr-2" for="defaultCheck${index + 2}">
+                  ${item}
+                </label>
+              </div>
+            `
+          );
+        });
+      })
+    </script>
+  </body>
+</html>
